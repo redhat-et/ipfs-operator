@@ -5,7 +5,6 @@ go 1.18
 require (
 	github.com/libp2p/go-libp2p-core v0.0.1
 	github.com/libp2p/go-libp2p-crypto v0.1.0
-	github.com/libp2p/go-libp2p-peer v0.2.0
 	github.com/multiformats/go-multiaddr v0.3.3
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
