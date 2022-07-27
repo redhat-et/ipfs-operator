@@ -38,6 +38,8 @@ import (
 
 	"github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
+	relaydaemon "github.com/libp2p/go-libp2p-relay-daemon"
+	relayv2 "github.com/libp2p/go-libp2p/p2p/protocol/circuitv2/relay"
 	clusterv1alpha1 "github.com/redhat-et/ipfs-operator/api/v1alpha1"
 	"github.com/redhat-et/ipfs-operator/controllers/utils"
 
@@ -316,12 +318,51 @@ func (r *CircuitRelayReconciler) configRelay(
 ) controllerutil.MutateFn {
 	cmName := "libp2p-relay-daemon-config-" + m.Name
 	announceAddrs := m.Status.AddrInfo.Addrs
-	cfg := map[string]interface{}{
-		"Network": map[string]interface{}{
-			"AnnounceAddrs": announceAddrs,
+
+	// Based on default configuration at
+	// https://github.com/libp2p/go-libp2p-relay-daemon/blob/a32147234644cfef5b42a9f5ccaf99b6e6021fd4/cmd/libp2p-relay-daemon/config.go#L51-L78
+	cfg := relaydaemon.Config{
+		Network: relaydaemon.NetworkConfig{
+			ListenAddrs: []string{
+				"/ip4/0.0.0.0/tcp/4001",
+				"/ip6/::/tcp/4001",
+			},
+			AnnounceAddrs: announceAddrs,
+		},
+		ConnMgr: relaydaemon.ConnMgrConfig{
+			ConnMgrLo:    1024,
+			ConnMgrHi:    4096,
+			ConnMgrGrace: 2 * time.Minute,
+		},
+		RelayV1: relaydaemon.RelayV1Config{
+			Enabled: false,
+			// Resources: relayv1.DefaultResources(),
+		},
+		RelayV2: relaydaemon.RelayV2Config{
+			Enabled:   true,
+			Resources: relayv2.DefaultResources(),
+		},
+		Daemon: relaydaemon.DaemonConfig{
+			PprofPort: 6060,
 		},
 	}
-	cfgbytes, _ := json.Marshal(cfg)
+
+	// Explicit adjustments to relay resource limits.
+	cfg.RelayV2.Resources.Limit = nil // Full relay, we need to remove this limit.
+	cfg.RelayV2.Resources.ReservationTTL = time.Hour
+	cfg.RelayV2.Resources.MaxReservations = 128
+	cfg.RelayV2.Resources.MaxCircuits = 16
+	cfg.RelayV2.Resources.BufferSize = 2048
+	cfg.RelayV2.Resources.MaxReservationsPerPeer = 4
+	cfg.RelayV2.Resources.MaxReservationsPerIP = 8
+	cfg.RelayV2.Resources.MaxReservationsPerASN = 32
+
+	cfgbytes, err := json.Marshal(cfg)
+	if err != nil {
+		return func() error {
+			return err
+		}
+	}
 	expected := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,

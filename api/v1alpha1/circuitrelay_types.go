@@ -31,7 +31,7 @@ type AddrInfoBasicType struct {
 }
 
 func (a *AddrInfoBasicType) Parse() error {
-	id, err := peer.IDB58Decode(a.ID)
+	id, err := peer.Decode(a.ID)
 	if err != nil {
 		return err
 	}

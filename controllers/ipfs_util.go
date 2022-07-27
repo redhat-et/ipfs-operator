@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/libp2p/go-libp2p-core/crypto"
 	ci "github.com/libp2p/go-libp2p-core/crypto"
 	peer "github.com/libp2p/go-libp2p-core/peer"
 )
@@ -40,7 +41,7 @@ func generateIdentity() (peer.ID, string, error) {
 	if err != nil {
 		return "", "", fmt.Errorf("cannot generate new key: %w", err)
 	}
-	privBytes, err := priv.Bytes()
+	privBytes, err := crypto.MarshalPrivateKey(priv)
 	if err != nil {
 		return "", "", fmt.Errorf("cannot get bytes from private key: %w", err)
 	}
